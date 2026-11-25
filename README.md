@@ -9,7 +9,7 @@ Equipe: Alexandre Pereira, Danilo Magalhaes, Lucas Cristiano.
 ## Compilar
 
 ```sh
-make            # tudo (precisa g++, make e um JDK 17+ pra Q3)
+make            # tudo (precisa g++, make e um JDK 21+ pra Q3)
 make q1 q2      # so os C++
 ```
 
@@ -37,9 +37,11 @@ bin/q2Paralelo 1024 12
 
 ## Q3: JohnMarcos Bet
 
+Cassino online com lobby e três jogos: roleta, crash (aviãozinho) e corrida de cavalos. Os bots são
+professores do IComp. No lobby se escolhe o modo **com threads** ou **sem threads** e depois o jogo. As duas
+versões têm interface gráfica; a sem threads faz tudo na thread da interface, então a janela trava
+enquanto o programa trabalha. O placar do lobby compara o tempo dos dois modos (Ts / Tp).
+
 ```sh
-java -cp bin/q3 Roleta                          # com threads, abre dialogo de parametros
-java -cp bin/q3 Roleta 8 15 1000 500 3000       # bots, janela de apostas (s), saldo, atraso min/max (ms)
-java -cp bin/q3 RoletaSequencial                # sem threads, no terminal
-java -cp bin/q3 RoletaSequencial 8 1000 500 3000
+java -cp bin/q3 Cassino         # lobby
 ```

@@ -2,11 +2,17 @@ import java.util.Random;
 import java.util.Set;
 
 // regras da roleta europeia (0 a 36), usadas pelas duas versoes
-// alvo e "vermelho", "preto", "par", "impar", "duzia1", "duzia2", "duzia3" ou um numero ("17")
-public record Aposta(String alvo, int valor) {
+// alvo e "vermelho", "preto", "par", "impar", "duzia1", "duzia2", "duzia3" ou um numero ("17");
+// criadaEm serve pro tabuleiro piscar a ficha nova
+public record Aposta(String alvo, int valor, long criadaEm) {
 
     static final Set<Integer> VERMELHOS = Set.of(1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36);
     static final String[] ALVOS_FIXOS = {"vermelho", "preto", "par", "impar", "duzia1", "duzia2", "duzia3"};
+    static final int[] FICHAS = {10, 25, 50, 100};
+
+    Aposta(String alvo, int valor) {
+        this(alvo, valor, System.currentTimeMillis());
+    }
 
     // o zero so paga quem apostou nele, nao conta como par nem como cor
     boolean ganhou(int numero) {
@@ -33,18 +39,12 @@ public record Aposta(String alvo, int valor) {
         return valor * 2;
     }
 
-    static boolean alvoValido(String alvo) {
-        for (String fixo : ALVOS_FIXOS)
-            if (fixo.equals(alvo))
-                return true;
-        return alvo.matches("\\d{1,2}") && Integer.parseInt(alvo) <= 36;
-    }
-
     // um em cada quatro bots vai num numero seco, o resto em aposta de fora
-    static Aposta aleatoria(Random sorteio, int valor) {
+    static Aposta aleatoria(Random sorteio) {
+        int ficha = FICHAS[sorteio.nextInt(FICHAS.length)];
         if (sorteio.nextInt(4) == 0)
-            return new Aposta(String.valueOf(sorteio.nextInt(37)), valor);
-        return new Aposta(ALVOS_FIXOS[sorteio.nextInt(ALVOS_FIXOS.length)], valor);
+            return new Aposta(String.valueOf(sorteio.nextInt(37)), ficha);
+        return new Aposta(ALVOS_FIXOS[sorteio.nextInt(ALVOS_FIXOS.length)], ficha);
     }
 
     static String corDe(int numero) {
@@ -53,8 +53,18 @@ public record Aposta(String alvo, int valor) {
         return VERMELHOS.contains(numero) ? "vermelho" : "preto";
     }
 
+    static String nomeDoAlvo(String alvo) {
+        return switch (alvo) {
+            case "duzia1" -> "1ª dúzia";
+            case "duzia2" -> "2ª dúzia";
+            case "duzia3" -> "3ª dúzia";
+            case "impar" -> "ímpar";
+            default -> alvo;
+        };
+    }
+
     @Override
     public String toString() {
-        return valor + " no " + alvo;
+        return Estilo.dinheiro(valor) + " no " + nomeDoAlvo(alvo);
     }
 }

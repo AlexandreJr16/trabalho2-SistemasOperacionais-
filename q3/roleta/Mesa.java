@@ -34,10 +34,20 @@ public class Mesa {
         trava.lock();
         try {
             apostasAbertas = false;
-            Map<Jogador, List<Aposta>> congeladas = new LinkedHashMap<>();
+            return retrato();
+        } finally {
+            trava.unlock();
+        }
+    }
+
+    // copia de todas as fichas na mesa, pro tabuleiro desenhar sem segurar a trava
+    Map<Jogador, List<Aposta>> retrato() {
+        trava.lock();
+        try {
+            Map<Jogador, List<Aposta>> copia = new LinkedHashMap<>();
             for (Map.Entry<Jogador, List<Aposta>> entrada : apostas.entrySet())
-                congeladas.put(entrada.getKey(), new ArrayList<>(entrada.getValue()));
-            return congeladas;
+                copia.put(entrada.getKey(), new ArrayList<>(entrada.getValue()));
+            return copia;
         } finally {
             trava.unlock();
         }
@@ -88,6 +98,27 @@ public class Mesa {
             jogador.creditar(removida.valor());
             acoesNaRodada++;
             return removida;
+        } finally {
+            trava.unlock();
+        }
+    }
+
+    // tira a ficha do jogador daquela casa (botao direito no tabuleiro)
+    Aposta tirar(Jogador jogador, String alvo) {
+        trava.lock();
+        try {
+            List<Aposta> doJogador = apostas.get(jogador);
+            if (!apostasAbertas || doJogador == null)
+                return null;
+            for (int i = doJogador.size() - 1; i >= 0; i--) {
+                if (!doJogador.get(i).alvo().equals(alvo))
+                    continue;
+                Aposta removida = doJogador.remove(i);
+                jogador.creditar(removida.valor());
+                acoesNaRodada++;
+                return removida;
+            }
+            return null;
         } finally {
             trava.unlock();
         }

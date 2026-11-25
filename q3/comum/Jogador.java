@@ -1,100 +1,64 @@
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
-// cada bot e uma thread: dorme ate abrir a rodada e, enquanto as apostas estao abertas, fica
-// pensando um tempo aleatorio e apostando, trocando ou cancelando, junto com todo mundo.
-// O humano usa a mesma classe mas sem thread propria (quem chama e a interface)
-public class Jogador implements Runnable {
+// quem esta sentado na mesa: o humano ou um bot. Os bots de cada jogo sao Runnables a parte
+// (BotRoleta, BotCrash) que usam esta classe so pra saldo, cor e o status que aparece na tela
+public class Jogador {
 
-    static final int MAXIMO_APOSTAS = 4;
-    static final int[] FICHAS = {10, 25, 50, 100};
+    static final int SALDO_DO_BOT = 1000;
+    static final int MAXIMO_DE_BOTS = 10;
+    static final String DONO_DO_CASSINO = "João Marcos";
+    static final List<String> PROFESSORES = List.of("Alberto Castro", "Alexandre Passito", "Altigran Silva",
+            "Ana Carolina Oran", "André Carvalho", "Aristóbulo Angelim", "Bruno Gadelha", "César Melo", "David Fernandes",
+            "Edjair Mota", "Edjard Mota", "Eulanda Santos", "Edleno Moura", "Edson Silva-Jr", "Eduardo Nakamura",
+            "Eduardo Souto", "Eduardo Feitosa", "Elaine Harada", "Fabíola Nakamura", "Horácio Fernandes",
+            "José Francisco", "José Pio", "José Reginaldo", "Juan Colonna", "Ketlen Lucena", "Leandro Galvão",
+            "Marco Cristo", "Mário Salvatierra", "Moisés Carvalho", "Rafael Giusti", "Raimundo Barreto",
+            "Rosiane Freitas", "Ruiter Caldas", "Tanara Lauschner", "Tayana Conte", "Thais Castro");
 
     final String nome;
-    private final Mesa mesa;
-    private final int atrasoMinimoMs;
-    private final int atrasoMaximoMs;
-    private final Random sorteio = new Random();
-    private int saldo;
-    private volatile String status = "esperando a rodada";
+    final Color cor;
+    private final Carteira carteira;
+    private volatile String status = "chegando na mesa";
 
-    Jogador(String nome, int saldoInicial, Mesa mesa, int atrasoMinimoMs, int atrasoMaximoMs) {
+    Jogador(String nome, Color cor, Carteira carteira) {
         this.nome = nome;
-        this.saldo = saldoInicial;
-        this.mesa = mesa;
-        this.atrasoMinimoMs = atrasoMinimoMs;
-        this.atrasoMaximoMs = atrasoMaximoMs;
+        this.cor = cor;
+        this.carteira = carteira;
     }
 
-    @Override
-    public void run() {
-        Janela.log("thread criada, saldo " + saldo());
-        int rodada = 0;
-        try {
-            while (true) {
-                status = "dormindo, esperando a rodada";
-                rodada = mesa.esperarProximaRodada(rodada);
-                jogarRodada(rodada);
-            }
-        } catch (InterruptedException e) {
-            Janela.log("thread finalizada");
-        }
+    // o humano primeiro e depois os bots, que sao professores do IComp sorteados a cada mesa;
+    // o dono do cassino (o professor da disciplina) sempre senta
+    static List<Jogador> mesaCom(Jogador humano, int quantidadeDeBots) {
+        List<String> sorteados = new ArrayList<>(PROFESSORES);
+        Collections.shuffle(sorteados);
+        sorteados.add(0, DONO_DO_CASSINO);
+        List<Jogador> jogadores = new ArrayList<>(List.of(humano));
+        for (int i = 0; i < quantidadeDeBots; i++)
+            jogadores.add(new Jogador(sorteados.get(i), Estilo.cor(i), new Carteira(SALDO_DO_BOT)));
+        return jogadores;
     }
 
-    private void jogarRodada(int rodada) throws InterruptedException {
-        Janela.log("acordou pra rodada " + rodada);
-        while (mesa.aberta(rodada)) {
-            status = "pensando...";
-            Thread.sleep(atrasoMinimoMs + sorteio.nextInt(atrasoMaximoMs - atrasoMinimoMs + 1));
-            agir();
-        }
-        status = "esperando o giro";
+    static List<Jogador> soOsBots(List<Jogador> jogadores) {
+        return jogadores.subList(1, jogadores.size());
     }
 
-    // depois do sleep a mesa pode ter fechado; ai a Mesa recusa e o bot fica sabendo que chegou tarde
-    private void agir() {
-        List<Aposta> minhas = mesa.apostasDe(this);
-        int escolha = sorteio.nextInt(100);
-        if (!minhas.isEmpty() && escolha < 20) {
-            Aposta cancelada = mesa.cancelarUltima(this);
-            avisar(cancelada != null, "cancelou " + cancelada);
-            return;
-        }
-        if (!minhas.isEmpty() && escolha < 45) {
-            String novoAlvo = Aposta.aleatoria(sorteio, 0).alvo();
-            Aposta antiga = mesa.trocar(this, novoAlvo);
-            avisar(antiga != null, antiga == null ? "" : "trocou " + antiga + " pro " + novoAlvo);
-            return;
-        }
-        int ficha = FICHAS[sorteio.nextInt(FICHAS.length)];
-        if (minhas.size() >= MAXIMO_APOSTAS || ficha > saldo())
-            return;
-        Aposta nova = Aposta.aleatoria(sorteio, ficha);
-        avisar(mesa.apostar(this, nova), "apostou " + nova);
+    boolean ehVoce() {
+        return cor == Estilo.COR_HUMANO;
     }
 
-    private void avisar(boolean conseguiu, String oQueFez) {
-        if (!conseguiu) {
-            status = "chegou tarde, mesa fechada";
-            Janela.log("tentou mexer na aposta mas o crupie ja fechou a mesa");
-            return;
-        }
-        status = oQueFez;
-        Janela.log(oQueFez + " (saldo " + saldo() + ")");
+    boolean debitar(int valor) {
+        return carteira.debitar(valor);
     }
 
-    synchronized boolean debitar(int valor) {
-        if (valor > saldo)
-            return false;
-        saldo -= valor;
-        return true;
+    void creditar(int valor) {
+        carteira.creditar(valor);
     }
 
-    synchronized void creditar(int valor) {
-        saldo += valor;
-    }
-
-    synchronized int saldo() {
-        return saldo;
+    int saldo() {
+        return carteira.saldo();
     }
 
     String status() {

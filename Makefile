@@ -9,7 +9,7 @@ q2: bin/q2Sequencial bin/q2Paralelo
 
 q3:
 	mkdir -p bin/q3
-	javac -Xlint:all,-serial -d bin/q3 q3/*.java q3/comThreads/*.java q3/semThreads/*.java
+	javac -Xlint:all,-serial -d bin/q3 $(shell find q3 -name "*.java")
 
 bin/q1Sequencial: q1/sequencial.cpp q1/comum.h
 bin/q1Paralelo: q1/paralelo.cpp q1/comum.h

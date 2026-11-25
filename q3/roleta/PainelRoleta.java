@@ -6,9 +6,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import javax.swing.JComponent;
+import javax.swing.SwingUtilities;
 
-// desenho da roleta. Quem gira e uma thread propria de animacao, entao a tela continua
-// respondendo (e os jogadores continuam vivos) enquanto ela roda
+// desenho da roda. Gira na thread de quem chamar: com threads e uma thread de animacao propria,
+// entao a tela continua respondendo; sem threads e a thread da interface, que fica presa aqui
 public class PainelRoleta extends JComponent {
 
     static final int[] ORDEM_DA_RODA = {0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26};
@@ -20,19 +21,18 @@ public class PainelRoleta extends JComponent {
     private volatile int numeroSorteado = -1;
 
     PainelRoleta() {
-        setPreferredSize(new Dimension(360, 360));
+        setPreferredSize(new Dimension(380, 380));
     }
 
-    Thread girar(int numero) {
+    void limpar() {
         numeroSorteado = -1;
-        Thread animacao = new Thread(() -> animar(numero), "Animacao roleta");
-        animacao.start();
-        return animacao;
+        repaint();
     }
 
     // a casa do numero tem que parar com o meio dela embaixo do ponteiro (90 graus = topo),
     // depois de umas 5 voltas desacelerando
-    private void animar(int numero) {
+    void girar(int numero) {
+        numeroSorteado = -1;
         double anguloInicial = angulo;
         double alvo = 90 - posicaoNaRoda(numero) * PASSO - PASSO / 2;
         double voltas = Math.ceil((anguloInicial + 1800 - alvo) / 360);
@@ -43,12 +43,20 @@ public class PainelRoleta extends JComponent {
             progresso = Math.min(1, (System.currentTimeMillis() - inicio) / (double) DURACAO_GIRO_MS);
             double desacelerado = 1 - Math.pow(1 - progresso, 3);
             angulo = anguloInicial + (anguloFinal - anguloInicial) * desacelerado;
-            repaint();
+            redesenhar();
             dormir();
         }
         angulo = anguloFinal % 360;
         numeroSorteado = numero;
-        repaint();
+        redesenhar();
+    }
+
+    // na thread da interface o repaint so aconteceria depois do giro, entao pinta na hora
+    private void redesenhar() {
+        if (SwingUtilities.isEventDispatchThread())
+            paintImmediately(0, 0, getWidth(), getHeight());
+        else
+            repaint();
     }
 
     private void dormir() {
@@ -96,7 +104,7 @@ public class PainelRoleta extends JComponent {
             g.setColor(Color.WHITE);
             g.drawString(texto, (int) (centroX + raioTexto * Math.cos(meio)) - largura / 2, (int) (centroY - raioTexto * Math.sin(meio)) + 4);
         }
-        g.setColor(new Color(212, 175, 55));
+        g.setColor(Estilo.DOURADO);
         g.setStroke(new BasicStroke(4));
         g.drawOval(x, y, diametro, diametro);
     }
